@@ -154,3 +154,11 @@ cython_debug/
 
 # VS Code
 .vscode/
+
+# Vector Database
+chroma_db/
+backend/chroma_db/
+
+# Scraper Cache
+backend/books/scraper/books_raw.json
+
