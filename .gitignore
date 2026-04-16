@@ -162,3 +162,11 @@ backend/chroma_db/
 # Scraper Cache
 backend/books/scraper/books_raw.json
 
+
+# Node.js
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+.DS_Store
+*.log
