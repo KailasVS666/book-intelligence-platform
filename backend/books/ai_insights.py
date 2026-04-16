@@ -1,21 +1,13 @@
-import anthropic
+import ollama
 from django.conf import settings
-
-def get_claude_client():
-    return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+import json
+import re
 
 def generate_book_insights(description):
     """
-    Calls Claude 3.5 Sonnet to generate summary, genre, and sentiment.
+    Calls local Ollama (Llama 3) to generate summary, genre, and sentiment.
     """
-    if not settings.ANTHROPIC_API_KEY:
-        return {
-            "summary": "AI summary unavailable (API key missing).",
-            "genre": "Unknown",
-            "sentiment": "Neutral"
-        }
-
-    client = get_claude_client()
+    model_name = getattr(settings, "OLLAMA_MODEL", "llama3")
     
     prompt = f"""
     Analyze the following book description and provide three things:
@@ -30,22 +22,19 @@ def generate_book_insights(description):
     """
 
     try:
-        message = client.messages.create(
-            model="claude-3-5-sonnet-20240620", # Using 3.5 Sonnet as requested (or latest compatible)
-            max_tokens=1000,
-            temperature=0,
+        response = ollama.chat(
+            model=model_name,
             messages=[
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            options={
+                "temperature": 0
+            }
         )
         
-        # Extract response text
-        response_text = message.content[0].text
+        response_text = response['message']['content']
         
-        # Basic parsing (handling potential Claude prefix/suffix)
-        import json
-        import re
-        
+        # Basic parsing (handling potential model prefix/suffix)
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
             insights = json.loads(json_match.group())
@@ -58,9 +47,9 @@ def generate_book_insights(description):
             }
             
     except Exception as e:
-        print(f"Error calling Claude API: {e}")
+        print(f"Error calling Ollama: {e}")
         return {
-            "summary": "Error generating AI summary.",
+            "summary": "Error generating AI summary. Ensure Ollama is running (`ollama run llama3`).",
             "genre": "Unknown",
             "sentiment": "Neutral"
         }

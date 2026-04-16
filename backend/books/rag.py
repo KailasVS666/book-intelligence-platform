@@ -116,8 +116,8 @@ def ask_rag_question(question, book_id=None):
     
     context = "\n\n".join([c["text"] for c in relevant_chunks])
     
-    from .ai_insights import get_claude_client
-    client = get_claude_client()
+    import ollama
+    model_name = getattr(settings, "OLLAMA_MODEL", "llama3")
     
     prompt = f"""
     You are a helpful book intelligence assistant. Use the provided context to answer the user's question.
@@ -131,18 +131,20 @@ def ask_rag_question(question, book_id=None):
     """
     
     try:
-        message = client.messages.create(
-            model="claude-3-5-sonnet-20240620",
-            max_tokens=1000,
-            temperature=0,
+        response = ollama.chat(
+            model=model_name,
             messages=[
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            options={
+                "temperature": 0
+            }
         )
         
-        answer = message.content[0].text
+        answer = response['message']['content']
         
         # Format sources
+
         sources = []
         for chunk in relevant_chunks:
             bid = chunk["metadata"]["book_id"]

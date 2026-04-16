@@ -139,8 +139,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True
 
-# Anthropic Claude API
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+# Ollama
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+
 
 # ChromaDB
 CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", os.path.join(BASE_DIR, "chroma_db"))
