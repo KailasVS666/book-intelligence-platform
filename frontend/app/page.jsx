@@ -36,13 +36,19 @@ export default function Dashboard() {
     }
     
     if (selectedGenre !== "All") {
-      result = result.filter(book => book.genre === selectedGenre);
+      result = result.filter(book => 
+        book.genre && book.genre.toLowerCase().includes(selectedGenre.toLowerCase())
+      );
     }
     
     setFilteredBooks(result);
   }, [searchTerm, selectedGenre, books]);
 
-  const genres = ["All", ...new Set(books.map(b => b.genre).filter(Boolean))];
+  // Extract unique single genres from comma-separated strings
+  const genres = ["All", ...new Set(books.flatMap(b => 
+    b.genre ? b.genre.split(',').map(g => g.trim()) : []
+  ))].sort();
+
 
   return (
     <main className="min-h-screen p-8 max-w-7xl mx-auto">

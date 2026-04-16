@@ -76,11 +76,11 @@ export default function BookDetail() {
             <p className="text-xl text-gray-400">by {book.author || 'Unknown Author'}</p>
             
             <div className="flex flex-wrap gap-3">
-              {book.genre && (
-                <span className="bg-purple-600/30 text-purple-300 border border-purple-500/30 px-3 py-1 rounded-full text-sm font-medium">
-                  {book.genre}
+              {book.genre && book.genre.split(',').map((g, index) => (
+                <span key={index} className="bg-purple-600/30 text-purple-300 border border-purple-500/30 px-3 py-1 rounded-full text-sm font-medium">
+                  {g.trim()}
                 </span>
-              )}
+              ))}
               {book.sentiment && (
                 <span className={`px-3 py-1 rounded-full text-sm font-medium border ${sentimentColor}`}>
                   {book.sentiment} Tone
@@ -109,7 +109,8 @@ export default function BookDetail() {
             </section>
           )}
 
-          <QABox bookId={book.id} />
+          <QABox bookId={book.pk || book.id} />
+
         </div>
       </div>
 

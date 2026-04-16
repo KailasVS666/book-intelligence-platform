@@ -17,9 +17,10 @@ export default function BookCard({ book }) {
           />
           {book.genre && (
             <span className="absolute top-3 right-3 bg-purple-600/80 backdrop-blur-md text-white text-xs px-2 py-1 rounded-full border border-purple-400/30">
-              {book.genre}
+              {book.genre.split(',')[0].trim()}
             </span>
           )}
+
         </div>
         
         <div className="p-4 flex-grow flex flex-col">

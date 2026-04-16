@@ -76,7 +76,7 @@ def index_book(book_id):
                 metadatas=[{"book_id": book.id, "chunk_index": i}]
             )
             
-        print(f"✅ Indexed book {book.id}: {len(chunks)} chunks created.")
+        print(f"Indexed book {book.id}: {len(chunks)} chunks created.")
         
     except Exception as e:
         print(f"Error indexing book {book_id}: {e}")
@@ -88,7 +88,7 @@ def get_relevant_chunks(question, book_id=None, top_k=5):
     collection = get_collection()
     query_embedding = model.encode(question).tolist()
     
-    where_filter = {}
+    where_filter = None
     if book_id:
         where_filter = {"book_id": int(book_id)}
         
