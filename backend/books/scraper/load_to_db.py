@@ -20,7 +20,6 @@ def load_to_db():
 
     for book in books:
         # Map rating text to float if needed on client side or handle in backend
-        # The brief says rating is FloatField
         rating_map = {"One": 1, "Two": 2, "Three": 3, "Four": 4, "Five": 5}
         rating_val = rating_map.get(book.get("rating_text"), 0)
 
@@ -32,20 +31,19 @@ def load_to_db():
             "description": book["description"],
             "book_url": book["book_url"],
             "cover_image_url": book["cover_image_url"],
-            # Price is optional in model but we have it
             "price": book.get("price") 
         }
 
         try:
-            response = requests.post(api_url, json=payload)
+            response = requests.post(api_url, json=payload, timeout=60)
             if response.status_code in [201, 200]:
-                print(f"✅ Success: {book['title']}")
+                print(f"Success: {book['title']}")
                 success_count += 1
             else:
-                print(f"❌ Failed: {book['title']} - {response.status_code} {response.text}")
+                print(f"Failed: {book['title']} - {response.status_code} {response.text}")
                 error_count += 1
         except Exception as e:
-            print(f"❌ Error posting {book['title']}: {e}")
+            print(f"Error posting {book['title']}: {e}")
             error_count += 1
 
     print(f"\nFinished loading data.")
