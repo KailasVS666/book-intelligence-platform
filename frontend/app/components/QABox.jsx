@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
+import { booksApi } from '../utils/api';
 
-export default function QABox({ bookId }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -12,23 +12,18 @@ export default function QABox({ bookId }) {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/books/ask/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, book_id: bookId }),
-      });
-      const data = await response.json();
+      const data = await booksApi.askQuestion({ question, book_id: bookId });
       setAnswer(data);
     } catch (error) {
-      console.error("Error asking question:", error);
       setAnswer({ 
-        answer: "Sorry, I couldn't connect to the AI service. Please ensure the backend is running.",
+        answer: "Connection failed. Please ensure the backend and Ollama are running.",
         sources: [] 
       });
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="glass-card p-6 ring-1 ring-white/10">

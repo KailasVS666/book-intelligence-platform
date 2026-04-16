@@ -4,8 +4,8 @@ import { useParams } from 'next/navigation';
 import QABox from '../../components/QABox';
 import RecommendationStrip from '../../components/RecommendationStrip';
 import Link from 'next/link';
+import { booksApi } from '../../utils/api';
 
-export default function BookDetail() {
   const { id } = useParams();
   const [book, setBook] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
@@ -14,24 +14,22 @@ export default function BookDetail() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [bookRes, recRes] = await Promise.all([
-          fetch(`http://localhost:8000/api/books/${id}/`),
-          fetch(`http://localhost:8000/api/books/${id}/recommendations/`)
+        const [bookData, recData] = await Promise.all([
+          booksApi.getById(id),
+          booksApi.getRecommendations(id)
         ]);
-        
-        const bookData = await bookRes.json();
-        const recData = await recRes.json();
         
         setBook(bookData);
         setRecommendations(recData);
       } catch (error) {
-        console.error("Error fetching book details:", error);
+        // Error logged by utility
       } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, [id]);
+
 
   if (loading) {
     return (

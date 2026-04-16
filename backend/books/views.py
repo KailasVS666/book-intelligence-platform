@@ -1,4 +1,6 @@
+from typing import Any, Dict
 from rest_framework import status, views, generics
+from rest_framework.request import Request
 from rest_framework.response import Response
 from .models import Book
 from .serializers import BookSerializer, BookListSerializer
@@ -7,97 +9,97 @@ from .rag import index_book, ask_rag_question, get_relevant_chunks
 import threading
 
 class BookListCreateView(generics.ListAPIView):
+    """
+    Exposes a list of all indexed books ordered by creation date.
+    """
     queryset = Book.objects.all().order_by('-created_at')
     serializer_class = BookListSerializer
 
 class BookDetailView(generics.RetrieveAPIView):
+    """
+    Retrieves detailed metadata for a specific book.
+    """
     queryset = Book.objects.all()
     serializer_class = BookSerializer
 
 class BookUploadView(views.APIView):
     """
-    Accepts book data, saves to DB, then triggers AI insights and indexing.
+    Handles book ingestion, metadata storage, and initiates downstream AI processing.
     """
-    def post(self, request):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         serializer = BookSerializer(data=request.data)
-        if serializer.is_valid():
-            # Check for duplicates by URL or title
-            title = serializer.validated_data.get('title')
-            book_url = serializer.validated_data.get('book_url')
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        book_url = serializer.validated_data.get('book_url')
+        existing_book = Book.objects.filter(book_url=book_url).first()
+        
+        if existing_book:
+            return Response(BookSerializer(existing_book).data, status=status.HTTP_200_OK)
+        
+        book = serializer.save()
+        
+        # Initiate background processing for AI insights and RAG indexing
+        threading.Thread(target=self._process_book_background, args=(book.id,)).start()
+        
+        return Response(BookSerializer(book).data, status=status.HTTP_201_CREATED)
+
+    def _process_book_background(self, book_id: int) -> None:
+        """
+        Private method to handle asynchronous AI analysis and indexing.
+        """
+        try:
+            book = Book.objects.get(id=book_id)
+            insights = generate_book_insights(book.description)
             
-            existing_book = Book.objects.filter(book_url=book_url).first()
-            if existing_book:
-                return Response(BookSerializer(existing_book).data, status=status.HTTP_200_OK)
+            book.ai_summary = insights.get('summary')
+            book.genre = insights.get('genre')
+            book.sentiment = insights.get('sentiment')
+            book.save()
             
-            book = serializer.save()
-            
-            # Trigger AI Insights (can be async in real prod, here synchronous for simplicity or threading)
-            # We'll use a simple thread to not block the response if possible, 
-            # though the brief implies it happens on upload.
-            
-            def process_book(b_id):
-                b = Book.objects.get(id=b_id)
-                # 1. Generate AI Insights
-                insights = generate_book_insights(b.description)
-                b.ai_summary = insights.get('summary')
-                b.genre = insights.get('genre')
-                b.sentiment = insights.get('sentiment')
-                b.save()
-                
-                # 2. Index for RAG
-                index_book(b_id)
-            
-            # For demonstration purposes, we run it in a thread
-            thread = threading.Thread(target=process_book, args=(book.id,))
-            thread.start()
-            
-            return Response(BookSerializer(book).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            index_book(book_id)
+        except Book.DoesNotExist:
+            pass
+        except Exception as e:
+            # In a production environment, use a logger here
+            print(f"Background processing error for book {book_id}: {e}")
 
 class BookRecommendationView(views.APIView):
     """
-    Returns 5 similar books based on embedding similarity.
+    Generates intelligent book recommendations using semantic similarity.
     """
-    def get(self, request, pk):
+    def get(self, request: Request, pk: int, *args: Any, **kwargs: Any) -> Response:
         try:
             book = Book.objects.get(pk=pk)
             
-            # Simple recommendation: same genre + some random others
-            # Bonus: use ChromaDB to find similar books based on average embeddings
-            # For now, let's just use genre and nearest neighbors from ChromaDB
+            # Retrieve semantic neighbors from vector store
+            query_context = f"{book.title} {book.genre or ''}"
+            chunks = get_relevant_chunks(query_context, top_k=6)
             
-            # Get chunks from this book to query for other books
-            collection = get_relevant_chunks(book.title + " " + (book.genre or ""), top_k=6)
+            book_ids = {chunk["metadata"]["book_id"] for chunk in chunks if chunk["metadata"]["book_id"] != book.id}
             
-            book_ids = set()
-            for chunk in collection:
-                bid = chunk["metadata"]["book_id"]
-                if bid != book.id:
-                    book_ids.add(bid)
-            
-            # Fallback to genre if not enough from embeddings
+            # Fill remaining recommendations using genre overlap (fallback)
             if len(book_ids) < 5:
-                genre_books = Book.objects.filter(genre=book.genre).exclude(id=book.id)[:5]
-                for gb in genre_books:
-                    book_ids.add(gb.id)
+                genre_matches = Book.objects.filter(genre=book.genre).exclude(id=book.id)[:5]
+                book_ids.update(gb.id for gb in genre_matches)
             
-            recommended = Book.objects.filter(id__in=list(book_ids)[:5])
-            serializer = BookListSerializer(recommended, many=True)
+            recommended_books = Book.objects.filter(id__in=list(book_ids)[:5])
+            serializer = BookListSerializer(recommended_books, many=True)
             return Response(serializer.data)
             
         except Book.DoesNotExist:
-            return Response({"error": "Book not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Resource not found"}, status=status.HTTP_404_NOT_FOUND)
 
 class AskQuestionView(views.APIView):
     """
-    RAG query endpoint.
+    Entry point for RAG-based natural language queries against book intelligence.
     """
-    def post(self, request):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         question = request.data.get('question')
         book_id = request.data.get('book_id')
         
         if not question:
-            return Response({"error": "Question is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Question parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
             
         result = ask_rag_question(question, book_id)
         return Response(result, status=status.HTTP_200_OK)

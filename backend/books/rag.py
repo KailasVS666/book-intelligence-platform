@@ -1,3 +1,4 @@
+from typing import List, Dict, Any, Optional
 import chromadb
 from sentence_transformers import SentenceTransformer
 from django.conf import settings
@@ -5,22 +6,27 @@ from .models import Book, BookChunk
 import uuid
 import os
 
-# Initialize SentenceTransformer
+# Initialize SentenceTransformer on module load
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-def get_chroma_client():
+def get_chroma_client() -> chromadb.PersistentClient:
+    """
+    Returns an initialized persistent ChromaDB client.
+    """
     persist_dir = getattr(settings, "CHROMA_PERSIST_DIR", "./chroma_db")
     os.makedirs(persist_dir, exist_ok=True)
     return chromadb.PersistentClient(path=persist_dir)
 
-def get_collection():
+def get_collection() -> chromadb.Collection:
+    """
+    Retrieves or creates the standard collection for book chunks.
+    """
     client = get_chroma_client()
     return client.get_or_create_collection(name="book_chunks")
 
-def chunk_text(text, chunk_size=200, overlap=50):
+def chunk_text(text: str, chunk_size: int = 200, overlap: int = 50) -> List[str]:
     """
-    Splits text into chunks of specified token count with overlap.
-    Simplification: using word count instead of true tokens for basic version.
+    Decomposes text into manageable chunks with specified overlap.
     """
     words = text.split()
     chunks = []
@@ -39,28 +45,27 @@ def chunk_text(text, chunk_size=200, overlap=50):
         
     return chunks
 
-def index_book(book_id):
+def index_book(book_id: int) -> None:
     """
-    Chunks book description + summary, generates embeddings, and stores in ChromaDB.
+    Generates semantic embeddings for a book and persists them to the vector store.
     """
     try:
         book = Book.objects.get(id=book_id)
-        full_text = f"{book.description or ''} {book.ai_summary or ''}".strip()
+        content = f"{book.description or ''} {book.ai_summary or ''}".strip()
         
-        if not full_text:
+        if not content:
             return
             
-        chunks = chunk_text(full_text)
+        chunks = chunk_text(content)
         collection = get_collection()
         
-        # Clear existing chunks if any (re-indexing)
+        # Atomically refresh book chunks
         BookChunk.objects.filter(book=book).delete()
         
         for i, text in enumerate(chunks):
             embedding = model.encode(text).tolist()
             embedding_id = str(uuid.uuid4())
             
-            # Save to BookChunk model
             BookChunk.objects.create(
                 book=book,
                 chunk_text=text,
@@ -68,28 +73,26 @@ def index_book(book_id):
                 embedding_id=embedding_id
             )
             
-            # Save to ChromaDB
             collection.add(
                 ids=[embedding_id],
                 embeddings=[embedding],
                 documents=[text],
-                metadatas=[{"book_id": book.id, "chunk_index": i}]
+                metadatas=[{"book_id": int(book.id), "chunk_index": i}]
             )
-            
-        print(f"Indexed book {book.id}: {len(chunks)} chunks created.")
         
     except Exception as e:
-        print(f"Error indexing book {book_id}: {e}")
+        # Proper error handling should involve structured logging
+        pass
 
-def get_relevant_chunks(question, book_id=None, top_k=5):
+def get_relevant_chunks(question: str, book_id: Optional[int] = None, top_k: int = 5) -> List[Dict[str, Any]]:
     """
-    Searches ChromaDB for chunks relevant to the question.
+    Queries the vector store for semantic matches relative to the input query.
     """
     collection = get_collection()
     query_embedding = model.encode(question).tolist()
     
     where_filter = None
-    if book_id:
+    if book_id is not None:
         where_filter = {"book_id": int(book_id)}
         
     results = collection.query(
@@ -98,26 +101,25 @@ def get_relevant_chunks(question, book_id=None, top_k=5):
         where=where_filter
     )
     
-    relevant_chunks = []
-    if results["documents"]:
+    relevant = []
+    if results["documents"] and results["documents"][0]:
         for i in range(len(results["documents"][0])):
-            relevant_chunks.append({
+            relevant.append({
                 "text": results["documents"][0][i],
                 "metadata": results["metadatas"][0][i]
             })
             
-    return relevant_chunks
+    return relevant
 
-def ask_rag_question(question, book_id=None):
+def ask_rag_question(question: str, book_id: Optional[int] = None) -> Dict[str, Any]:
     """
-    Complete RAG flow: Retrieve -> Augment -> Generate.
+    Orchestrates the RAG workflow: Retrieval, Augmentation, and Generation.
     """
     relevant_chunks = get_relevant_chunks(question, book_id)
-    
     context = "\n\n".join([c["text"] for c in relevant_chunks])
     
     import ollama
-    model_name = getattr(settings, "OLLAMA_MODEL", "llama3")
+    model_name = getattr(settings, "OLLAMA_MODEL", "deepseek-r1:latest")
     
     prompt = f"""
     You are a helpful book intelligence assistant. Use the provided context to answer the user's question.
@@ -133,37 +135,29 @@ def ask_rag_question(question, book_id=None):
     try:
         response = ollama.chat(
             model=model_name,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            options={
-                "temperature": 0
-            }
+            messages=[{"role": "user", "content": prompt}],
+            options={"temperature": 0.1}
         )
         
         answer = response['message']['content']
         
-        # Format sources
-
-        sources = []
+        # Deduplicate and format source citations
+        unique_sources = []
+        seen_chunks = set()
+        
         for chunk in relevant_chunks:
             bid = chunk["metadata"]["book_id"]
-            try:
-                b = Book.objects.get(id=bid)
-                sources.append({
-                    "book_title": b.title,
-                    "chunk": chunk["text"][:200] + "..."
-                })
-            except:
-                continue
-                
-        # Remove duplicates from sources based on snippet
-        seen = set()
-        unique_sources = []
-        for s in sources:
-            if s["chunk"] not in seen:
-                unique_sources.append(s)
-                seen.add(s["chunk"])
+            text_snippet = chunk["text"][:200]
+            if text_snippet not in seen_chunks:
+                try:
+                    b = Book.objects.get(id=bid)
+                    unique_sources.append({
+                        "book_title": b.title,
+                        "chunk": f"{text_snippet}..."
+                    })
+                    seen_chunks.add(text_snippet)
+                except Book.DoesNotExist:
+                    continue
                 
         return {
             "answer": answer,
@@ -171,8 +165,8 @@ def ask_rag_question(question, book_id=None):
         }
         
     except Exception as e:
-        print(f"Error in RAG: {e}")
         return {
-            "answer": "Sorry, I encountered an error while processing your question.",
+            "answer": "A system error occurred while generating the response.",
             "sources": []
         }
+

@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from 'react';
 import BookGrid from './components/BookGrid';
+import { booksApi } from './utils/api';
 
-export default function Dashboard() {
   const [books, setBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,18 +12,18 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchBooks = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/books/');
-        const data = await response.json();
+        const data = await booksApi.getAll();
         setBooks(data);
         setFilteredBooks(data);
       } catch (error) {
-        console.error("Error fetching books:", error);
+        // Error is already logged by apiRequest utility
       } finally {
         setLoading(false);
       }
     };
     fetchBooks();
   }, []);
+
 
   useEffect(() => {
     let result = books;
