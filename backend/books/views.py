@@ -18,3 +18,11 @@ def get_book(request, pk):
 
     serializer = BookSerializer(book)
     return Response(serializer.data)
+
+@api_view(['GET'])
+def recommend_books(request, pk):
+    books = Book.objects.exclude(id=pk)
+    serializer = BookSerializer(books, many=True)
+    return Response(serializer.data)
+
+    
