@@ -3,6 +3,16 @@ from rest_framework.response import Response
 from .models import Book
 from .serializers import BookSerializer
 
+def chunk_text(text, chunk_size=50):
+    words = text.split()
+    chunks = []
+
+    for i in range(0, len(words), chunk_size):
+        chunk = " ".join(words[i:i + chunk_size])
+        chunks.append(chunk)
+
+    return chunks
+
 @api_view(['GET'])
 def get_books(request):
     books = Book.objects.all()
@@ -49,4 +59,34 @@ def recommend_books(request, pk):
 
     serializer = BookSerializer(recommended, many=True)
     return Response(serializer.data)
+
+@api_view(['POST'])
+def ask_question(request):
+    question = request.data.get("question", "").lower()
+
+    books = Book.objects.all()
+
+    best_match = None
+    best_score = 0
+
+    for book in books:
+        if not book.description:
+            continue
+
+        score = 0
+        for word in question.split():
+            if word in book.description.lower():
+                score += 1
+
+        if score > best_score:
+            best_score = score
+            best_match = book
+
+    if best_match:
+        return Response({
+            "answer": best_match.description,
+            "book": best_match.title
+        })
+
+    return Response({"answer": "No relevant book found"})
 
