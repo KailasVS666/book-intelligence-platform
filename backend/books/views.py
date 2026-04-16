@@ -2,6 +2,16 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import Book
 from .serializers import BookSerializer
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+book_embeddings = {}
+
+def load_book_embeddings():
+    books = Book.objects.all()
+    for book in books:
+        if book.description:
+            book_embeddings[book.id] = model.encode(book.description)
 
 def chunk_text(text, chunk_size=50):
     words = text.split()
@@ -69,14 +79,21 @@ def ask_question(request):
     best_match = None
     best_score = 0
 
+    question_embedding = model.encode(question)
+
     for book in books:
         if not book.description:
             continue
 
-        score = 0
-        for word in question.split():
-            if word in book.description.lower():
-                score += 1
+        book_embedding = book_embeddings.get(book.id)
+
+        # cosine similarity
+        similarity = (question_embedding @ book_embedding) / (
+            (question_embedding @ question_embedding) ** 0.5 *
+            (book_embedding @ book_embedding) ** 0.5
+        )
+
+        score = similarity
 
         if score > best_score:
             best_score = score
@@ -90,3 +107,4 @@ def ask_question(request):
 
     return Response({"answer": "No relevant book found"})
 
+load_book_embeddings()
