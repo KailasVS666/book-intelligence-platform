@@ -2,11 +2,13 @@
 import { useState } from 'react';
 import { booksApi } from '../utils/api';
 
+export default function QABox({ bookId }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
+
     e.preventDefault();
     if (!question.trim()) return;
 

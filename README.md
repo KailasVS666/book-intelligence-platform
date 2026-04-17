@@ -4,6 +4,18 @@ A high-performance, full-stack intelligence platform for book data analysis. It 
 
 ---
 
+## 🖼 Platform Interface
+
+| Dashboard & Discovery | Advanced Filtering |
+|:---:|:---:|
+| ![Dashboard](./docs/screenshots/dashboard.png) | ![Filtering](./docs/screenshots/filter.png) |
+
+| Deep Intelligence | Contextual Q&A |
+|:---:|:---:|
+| ![Book Detail](./docs/screenshots/detail.png) | ![AI Response](./docs/screenshots/qa.png) |
+
+---
+
 ## 🏗 System Architecture
 
 ```mermaid
@@ -35,7 +47,7 @@ graph TD
 - **Local-First AI Integration**: Utilizes **Ollama** with the **Deepseek-R1** model for zero-cost, private AI insights and Q&A.
 - **Selective Retrieval (RAG)**: Implements semantic search across book descriptions using `all-MiniLM-L6-v2` and **ChromaDB**.
 - **Automated Book Forensics**: Generates summaries, genre classification, and sentiment analysis automatically upon book ingestion.
-- **Deep Web Scraping**: Advanced Selenium engine that visits industrial catalog pages to harvest high-resolution cover art and technical metadata.
+- **Deep Web Scraping**: Advanced Selenium engine that visits industrial catalog pages to harvest high-resolution cover art.
 - **Glassmorphism UI**: A premium, responsive dark-mode dashboard built for professional research and analysis.
 
 ---
@@ -98,10 +110,25 @@ npm run dev
 
 ---
 
-## 🔧 Technical Differentiators
-- **Hybrid Search**: Combines traditional MySQL queries with high-dimensional vector search.
-- **Synchronous Re-indexing**: Custom stability logic to ensure data integrity during bulk uploads.
-- **Zero API Dependency**: 100% of the AI intelligence runs locally on your machine.
+## 🔍 Sample Intelligence Response
+
+**Query**: *"Explain David Byrne's core philosophy regarding music as described in this book."*
+
+**AI Response**:
+> Based on the provided context, David Byrne's core philosophy regarding music includes:
+> 1. **Music as Adaptation and Response**: He views music as part of a "larger, almost Darwinian pattern" of adaptations. Music evolves in response to its surrounding cultural and physical environment.
+> 2. **Contextual Shaping**: Byrne emphasizes that music is profoundly shaped by its time and place.
+> 3. **Interdisciplinary Approach**: His exploration is described as panoptic, drawing from his roles as an anthropologist, social scientist, and historian.
+
+---
+
+## 🧪 Testing
+
+To verify the stability and data integrity of the platform, run the automated test suite:
+```bash
+cd backend
+python tests/test_stability.py
+```
 
 ---
 **Built for the Ergosphere Solutions Document Intelligence Internship.**

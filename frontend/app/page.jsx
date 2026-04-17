@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react';
 import BookGrid from './components/BookGrid';
 import { booksApi } from './utils/api';
 
+export default function Dashboard() {
   const [books, setBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
+
 
   useEffect(() => {
     const fetchBooks = async () => {

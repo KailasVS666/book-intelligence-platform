@@ -6,6 +6,7 @@ import RecommendationStrip from '../../components/RecommendationStrip';
 import Link from 'next/link';
 import { booksApi } from '../../utils/api';
 
+export default function BookDetail() {
   const { id } = useParams();
   const [book, setBook] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
@@ -13,6 +14,7 @@ import { booksApi } from '../../utils/api';
 
   useEffect(() => {
     const fetchData = async () => {
+
       try {
         const [bookData, recData] = await Promise.all([
           booksApi.getById(id),
