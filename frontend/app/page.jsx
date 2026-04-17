@@ -1,56 +1,22 @@
 "use client";
 import { useState, useEffect } from 'react';
 import BookGrid from './components/BookGrid';
-import { booksApi } from './utils/api';
+import { useBooks } from './hooks/useBooks';
 
 export default function Dashboard() {
-  const [books, setBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
-
-
-  useEffect(() => {
-    const fetchBooks = async () => {
-      try {
-        const data = await booksApi.getAll();
-        setBooks(data);
-        setFilteredBooks(data);
-      } catch (error) {
-        // Error is already logged by apiRequest utility
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBooks();
-  }, []);
-
+  
+  const { books, filteredBooks, loading, filterBooks } = useBooks();
 
   useEffect(() => {
-    let result = books;
-    
-    if (searchTerm) {
-      result = result.filter(book => 
-        book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (book.author && book.author.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-    
-    if (selectedGenre !== "All") {
-      result = result.filter(book => 
-        book.genre && book.genre.toLowerCase().includes(selectedGenre.toLowerCase())
-      );
-    }
-    
-    setFilteredBooks(result);
-  }, [searchTerm, selectedGenre, books]);
+    filterBooks(searchTerm, selectedGenre);
+  }, [searchTerm, selectedGenre, filterBooks]);
 
-  // Extract unique single genres from comma-separated strings
+  // Extract unique single genres from fetched books
   const genres = ["All", ...new Set(books.flatMap(b => 
     b.genre ? b.genre.split(',').map(g => g.trim()) : []
   ))].sort();
-
 
   return (
     <main className="min-h-screen p-8 max-w-7xl mx-auto">
@@ -68,7 +34,7 @@ export default function Dashboard() {
           <input
             type="text"
             placeholder="Search by title or author..."
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -78,7 +44,7 @@ export default function Dashboard() {
         </div>
         
         <select 
-          className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all w-full md:w-48 appearance-none"
+          className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all w-full md:w-48 appearance-none font-medium text-center"
           value={selectedGenre}
           onChange={(e) => setSelectedGenre(e.target.value)}
         >

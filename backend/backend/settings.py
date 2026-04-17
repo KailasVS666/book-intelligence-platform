@@ -139,6 +139,52 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True
 
+# REST Framework
+REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'backend.exceptions.custom_exception_handler',
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+}
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'books': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
 # Ollama
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
 
